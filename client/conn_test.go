@@ -194,3 +194,27 @@ func (s *connTestSuite) TestAttributes() {
 	require.Equal(s.T(), "go-mysql", s.c.attributes["_client_name"])
 	require.Equal(s.T(), "attrvalue", s.c.attributes["attrtest"])
 }
+
+func (s *connTestSuite) TestReset() {
+	{
+		_, err := s.c.Execute("set @a=1")
+		require.Nil(s.T(), err)
+	}
+
+	result, err := s.c.Execute("select @a")
+	require.Nil(s.T(), err)
+	v, _ := result.GetInt(0, 0)
+	require.Equal(s.T(), int64(1), v)
+
+	{
+		err := s.c.Reset()
+		require.Nil(s.T(), err)
+	}
+
+	{
+		result, err := s.c.Execute("select @a")
+		require.Nil(s.T(), err)
+		v, _ := result.GetValue(0, 0)
+		require.Equal(s.T(), nil, v)
+	}
+}
