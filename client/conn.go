@@ -619,3 +619,15 @@ func (c *Conn) StatusString() string {
 
 	return strings.Join(stats, "|")
 }
+
+func (c *Conn) Reset() error {
+	if err := c.writeCommand(COM_RESET_CONNECTION); err != nil {
+		return errors.Trace(err)
+	}
+
+	if _, err := c.readOK(); err != nil {
+		return errors.Trace(err)
+	}
+
+	return nil
+}
