@@ -629,5 +629,19 @@ func (c *Conn) Reset() error {
 		return errors.Trace(err)
 	}
 
+	c.db = ""
+
+	// reset charset here, utf-8
+	c.charset = DEFAULT_CHARSET
+
+	// reset status
+	c.status = 0
+
+	// reset collation
+	c.collation = ""
+
+	// TODO: shall we reset all capability?
+	// c.ccaps = 0
+
 	return nil
 }
