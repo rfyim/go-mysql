@@ -35,6 +35,7 @@ type (
 		idleCloseTimeout Timestamp
 		idlePingTimeout  Timestamp
 		connect          func() (*Conn, error)
+		onEvicted        func(*Conn)
 
 		synchro struct {
 			sync.Mutex
@@ -108,10 +109,11 @@ func NewPoolWithOptions(
 	}
 
 	pool := &Pool{
-		logFunc:  po.logFunc,
-		minAlive: po.minAlive,
-		maxAlive: po.maxAlive,
-		maxIdle:  po.maxIdle,
+		logFunc:   po.logFunc,
+		minAlive:  po.minAlive,
+		maxAlive:  po.maxAlive,
+		maxIdle:   po.maxIdle,
+		onEvicted: po.onEvicted,
 
 		idleCloseTimeout: Timestamp(math.Ceil(DefaultIdleTimeout.Seconds())),
 		idlePingTimeout:  Timestamp(math.Ceil(MaxIdleTimeoutWithoutPing.Seconds())),
@@ -274,6 +276,9 @@ func (pool *Pool) getConnection(ctx context.Context) (Connection, error) {
 func (pool *Pool) putConnectionUnsafe(connection Connection) {
 	if len(pool.synchro.idleConnections) == cap(pool.synchro.idleConnections) {
 		pool.synchro.stats.TotalCount--
+		if pool.onEvicted != nil {
+			pool.onEvicted(connection.conn)
+		}
 		_ = connection.conn.Close() // Could it be more effective to close older connections?
 	} else {
 		pool.synchro.idleConnections = append(pool.synchro.idleConnections, connection)
@@ -527,6 +532,9 @@ func (pool *Pool) closeConn(conn *Conn) {
 	pool.synchro.stats.TotalCount--
 	pool.synchro.Unlock()
 
+	if pool.onEvicted != nil {
+		pool.onEvicted(conn)
+	}
 	_ = conn.Close() // Closing is not an instant action, so do it outside the lock
 }
 
@@ -574,6 +582,9 @@ func (pool *Pool) Close() {
 	pool.synchro.Lock()
 	for _, connection := range pool.synchro.idleConnections {
 		pool.synchro.stats.TotalCount--
+		if pool.onEvicted != nil {
+			pool.onEvicted(connection.conn)
+		}
 		_ = connection.conn.Close()
 	}
 	pool.synchro.idleConnections = nil
@@ -588,6 +599,9 @@ func (pool *Pool) checkConnection(ctx context.Context) error {
 		conn, err := pool.connect()
 		if err == nil {
 			err = conn.Ping()
+			if pool.onEvicted != nil {
+				pool.onEvicted(conn)
+			}
 			_ = conn.Close()
 		}
 		errChan <- err

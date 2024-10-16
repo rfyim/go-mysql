@@ -6,7 +6,8 @@ import (
 
 type (
 	poolOptions struct {
-		logFunc LogFunc
+		logFunc   LogFunc
+		onEvicted func(*Conn)
 
 		minAlive int
 		maxAlive int
@@ -56,5 +57,11 @@ func WithConnOptions(options ...Option) PoolOption {
 func WithNewPoolPingTimeout(timeout time.Duration) PoolOption {
 	return func(o *poolOptions) {
 		o.newPoolPingTimeout = timeout
+	}
+}
+
+func WithEvictedFunc(f func(*Conn)) PoolOption {
+	return func(o *poolOptions) {
+		o.onEvicted = f
 	}
 }
