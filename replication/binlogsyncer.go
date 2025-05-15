@@ -28,6 +28,8 @@ var (
 
 // BinlogSyncerConfig is the configuration for BinlogSyncer.
 type BinlogSyncerConfig struct {
+	// Parent context.Context
+	Context context.Context
 	// ServerID is the unique ID in cluster.
 	ServerID uint32
 	// Flavor is "mysql" or "mariadb", if not set, use "mysql" default.
@@ -204,7 +206,11 @@ func NewBinlogSyncer(cfg BinlogSyncerConfig) *BinlogSyncer {
 	b.parser.SetRowsEventDecodeFunc(b.cfg.RowsEventDecodeFunc)
 	b.parser.SetTableMapOptionalMetaDecodeFunc(b.cfg.TableMapOptionalMetaDecodeFunc)
 	b.running = false
-	b.ctx, b.cancel = context.WithCancel(context.Background())
+	if b.cfg.Context == nil {
+		b.ctx, b.cancel = context.WithCancel(context.Background())
+	} else {
+		b.ctx, b.cancel = context.WithCancel(b.cfg.Context)
+	}
 
 	return b
 }
